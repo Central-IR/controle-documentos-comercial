@@ -2,10 +2,10 @@
   "name": "controle-documentos",
   "version": "1.0.0",
   "description": "Sistema completo de controle e gestão de documentos",
-  "main": "public/index.html",
+  "main": "server.js",
   "scripts": {
-    "start": "npx serve public",
-    "dev": "npx serve public -l 3000"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "keywords": [
     "documentos",
@@ -15,5 +15,17 @@
     "gerenciamento"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
