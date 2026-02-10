@@ -1,0 +1,19 @@
+{
+  "name": "controle-documentos",
+  "version": "1.0.0",
+  "description": "Sistema completo de controle e gestão de documentos",
+  "main": "public/index.html",
+  "scripts": {
+    "start": "npx serve public",
+    "dev": "npx serve public -l 3000"
+  },
+  "keywords": [
+    "documentos",
+    "gestão",
+    "controle",
+    "dashboard",
+    "gerenciamento"
+  ],
+  "author": "",
+  "license": "MIT"
+}
