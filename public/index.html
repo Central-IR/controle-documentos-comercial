@@ -18,7 +18,7 @@
             <!-- Header -->
             <div class="header">
                 <div class="header-left">
-                    <h1>Controle de Documentos</h1>
+                    <h1>Gerenciador de Documentos</h1>
                     <div id="connectionStatus" class="connection-status offline">
                         <span class="status-dot"></span>
                     </div>
@@ -28,169 +28,47 @@
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    Registrar Documento
+                    Novo Item
                 </button>
             </div>
 
-            <!-- Dashboard Cards -->
-            <div class="dashboard-grid">
-                <div class="stat-card stat-card-warning">
-                    <div class="stat-icon stat-icon-warning">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value stat-value-warning" id="statProcessados">0</div>
-                        <div class="stat-label">Documentos Processados</div>
-                    </div>
-                </div>
-                <div class="stat-card stat-card-danger" id="cardAtrasados" onclick="showAlertModal()" style="cursor: pointer;" title="Clique para ver detalhes">
-                    <div class="stat-icon stat-icon-danger">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value stat-value-danger" id="statAtrasados">0</div>
-                        <div class="stat-label">Documentos Atrasados</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon stat-icon-default">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-                        </svg>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value" id="statEmAnalise">0</div>
-                        <div class="stat-label">Em Análise</div>
-                    </div>
-                </div>
-                <div class="stat-card stat-card-success">
-                    <div class="stat-icon stat-icon-success">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="12" y1="18" x2="12" y2="12"></line>
-                            <line x1="9" y1="15" x2="15" y2="15"></line>
-                        </svg>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value stat-value-success" id="statTotal">0</div>
-                        <div class="stat-label">Total de Documentos</div>
-                    </div>
-                </div>
-                <div class="stat-card stat-card-info">
-                    <div class="stat-icon stat-icon-info">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                        </svg>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value stat-value-info" id="statPendentes">0</div>
-                        <div class="stat-label">Pendentes</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Search Bar with Filters -->
+            <!-- Search Bar com Ações em Lote -->
             <div class="search-bar-wrapper">
                 <div class="search-bar">
                     <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"></circle>
                         <path d="m21 21-4.35-4.35"></path>
                     </svg>
-                    <input type="text" id="search" placeholder="Pesquisar" oninput="filterDocumentos()">
+                    <input type="text" id="search" placeholder="Pesquisar documentos..." oninput="filterDocumentos()">
                     
-                    <div class="search-bar-filters">
-                        <div class="filter-dropdown-inline">
-                            <select id="filterDepartamento" onchange="filterDocumentos()">
-                                <option value="">Todos Departamentos</option>
-                            </select>
-                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                        </div>
-                        <div class="filter-dropdown-inline">
-                            <select id="filterResponsavel" onchange="filterDocumentos()">
-                                <option value="">Todos Responsáveis</option>
-                            </select>
-                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                        </div>
-                        <div class="filter-dropdown-inline">
-                            <select id="filterStatus" onchange="filterDocumentos()">
-                                <option value="">Todos os Status</option>
-                            </select>
-                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                        </div>
-                        <div class="month-navigation-inline">
-                            <button onclick="changeMonth(-1)" class="month-nav-arrow" title="Mês anterior">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                </svg>
-                            </button>
-                            <div class="month-display-inline">
-                                <span id="currentMonth">Carregando...</span>
-                            </div>
-                            <button onclick="changeMonth(1)" class="month-nav-arrow" title="Próximo mês">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <button class="calendar-btn" onclick="toggleCalendar()" title="Selecionar mês">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                    </button>
-                    <button class="calendar-btn" onclick="showGraficoModal()" title="Visualizar Gráfico">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <line x1="12" y1="20" x2="12" y2="10"></line>
-                            <line x1="18" y1="20" x2="18" y2="4"></line>
-                            <line x1="6" y1="20" x2="6" y2="16"></line>
-                        </svg>
-                    </button>
-                    <button class="calendar-btn" onclick="sincronizarDados()" title="Sincronizar">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="23 4 23 10 17 10"></polyline>
-                            <polyline points="1 20 1 14 7 14"></polyline>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Calendar Modal -->
-            <div class="calendar-modal" id="calendarModal">
-                <div class="calendar-content">
-                    <div class="calendar-header">
-                        <button onclick="changeCalendarYear(-1)" class="calendar-year-nav">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="15 18 9 12 15 6"></polyline>
+                    <!-- Ações em Lote -->
+                    <div class="bulk-actions">
+                        <button id="bulkMoveBtn" class="bulk-action-btn move" onclick="bulkMove()" title="Mover selecionados" disabled>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="12" y1="11" x2="12" y2="17"></line>
+                                <polyline points="9 14 12 17 15 14"></polyline>
                             </svg>
                         </button>
-                        <h3 id="calendarYear">2026</h3>
-                        <button onclick="changeCalendarYear(1)" class="calendar-year-nav">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="9 18 15 12 9 6"></polyline>
+                        
+                        <button id="bulkDeleteBtn" class="bulk-action-btn delete" onclick="bulkDelete()" title="Excluir selecionados" disabled>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                        </button>
+                        
+                        <button class="bulk-action-btn" onclick="sincronizarDados()" title="Sincronizar">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                             </svg>
                         </button>
                     </div>
-                    <div class="calendar-months" id="calendarMonths"></div>
                 </div>
             </div>
 
@@ -201,124 +79,38 @@
         </div>
     </div>
 
-    <!-- MODAL DE ALERTA ATRASADOS -->
-    <div class="modal-overlay" id="alertModal" style="display: none;">
-        <div class="modal-content alert-modal">
-            <div class="modal-header-alert">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                <button class="close-modal" onclick="closeAlertModal()">✕</button>
-            </div>
-            
-            <div class="modal-body" id="alertModalBody"></div>
-
-            <div class="modal-actions-alert">
-                <button type="button" onclick="closeAlertModal()" class="btn-close-red">Fechar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DASHBOARDS MENSAIS -->
-    <div class="modal-overlay" id="graficoModal" style="display: none;">
-        <div class="modal-content grafico-modal">
-            <div class="modal-header">
-                <h3 class="modal-title">Análise Anual</h3>
-                <button class="close-modal" onclick="closeGraficoModal()">✕</button>
-            </div>
-            
-            <div class="grafico-year-nav-simple">
-                <button onclick="changeGraficoYear(-1)" class="year-nav-btn-simple">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                </button>
-                <h3 id="graficoYear">2026</h3>
-                <button onclick="changeGraficoYear(1)" class="year-nav-btn-simple">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="dashboards-container" id="dashboardsContainer"></div>
-
-            <div class="modal-actions">
-                <button type="button" onclick="closeGraficoModal()" class="secondary">Fechar</button>
-            </div>
-        </div>
-    </div>
-
     <!-- MODAL DE FORMULÁRIO -->
     <div class="modal-overlay" id="formModal" style="display: none;">
         <div class="modal-content form-modal">
             <div class="modal-header">
-                <h3 class="modal-title" id="formTitle">Novo Documento</h3>
+                <h3 class="modal-title" id="formTitle">Novo Item</h3>
                 <button class="close-modal" onclick="closeFormModal()">✕</button>
             </div>
             
             <form id="documentoForm" onsubmit="handleFormSubmit(event)">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="tipoDocumento">Tipo de Documento *</label>
-                        <select id="tipoDocumento" required>
-                            <option value="">Selecione</option>
-                            <option value="Contrato">Contrato</option>
-                            <option value="NF">Nota Fiscal</option>
-                            <option value="Relatório">Relatório</option>
-                            <option value="Proposta">Proposta</option>
-                            <option value="Outros">Outros</option>
+                        <label for="tipoItem">Tipo *</label>
+                        <select id="tipoItem" required onchange="document.getElementById('tamanhoItem').disabled = this.value === 'pasta'">
+                            <option value="arquivo">Arquivo</option>
+                            <option value="pasta">Pasta</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="numeroDocumento">Número do Documento *</label>
-                        <input type="text" id="numeroDocumento" required>
+                        <label for="nomeItem">Nome *</label>
+                        <input type="text" id="nomeItem" required placeholder="Ex: Relatório_2026.pdf">
                     </div>
 
                     <div class="form-group">
-                        <label for="departamento">Departamento *</label>
-                        <select id="departamento" required>
-                            <option value="">Selecione</option>
-                            <option value="Financeiro">Financeiro</option>
-                            <option value="Recursos Humanos">Recursos Humanos</option>
-                            <option value="Comercial">Comercial</option>
-                            <option value="Jurídico">Jurídico</option>
-                            <option value="TI">TI</option>
-                        </select>
+                        <label for="tamanhoItem">Tamanho</label>
+                        <input type="text" id="tamanhoItem" placeholder="Ex: 2.4 MB">
+                        <small style="color: var(--text-secondary); font-size: 0.85rem;">Deixe vazio para pastas</small>
                     </div>
 
                     <div class="form-group">
-                        <label for="responsavel">Responsável *</label>
-                        <input type="text" id="responsavel" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="dataEmissao">Data de Emissão *</label>
-                        <input type="date" id="dataEmissao" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="dataVencimento">Data de Vencimento *</label>
-                        <input type="date" id="dataVencimento" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="status">Status *</label>
-                        <select id="status" required>
-                            <option value="">Selecione</option>
-                            <option value="Pendente">Pendente</option>
-                            <option value="Em Análise">Em Análise</option>
-                            <option value="Processado">Processado</option>
-                            <option value="Atrasado">Atrasado</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group full-width">
-                        <label for="observacoes">Observações</label>
-                        <textarea id="observacoes" rows="3"></textarea>
+                        <label for="proprietarioItem">Proprietário *</label>
+                        <input type="text" id="proprietarioItem" required placeholder="Nome do responsável">
                     </div>
                 </div>
 
@@ -334,9 +126,8 @@
         setTimeout(() => {
             const splash = document.getElementById('splashScreen');
             if (splash) splash.style.display = 'none';
-        }, 3000);
+        }, 1500);
     </script>
     <script src="script.js"></script>
-    <script src="calendar.js"></script>
 </body>
 </html>
