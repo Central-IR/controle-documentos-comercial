@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Documentos</title>
+    <title>Gerenciador de Documentos</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -23,52 +23,87 @@
                         <span class="status-dot"></span>
                     </div>
                 </div>
-                <button onclick="toggleForm()" class="btn-new-order-header">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Novo Item
-                </button>
+                <div class="header-actions">
+                    <button onclick="showUploadDialog()" class="btn-upload">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        Upload
+                    </button>
+                    <button onclick="toggleForm()" class="btn-new-order-header">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Novo
+                    </button>
+                </div>
             </div>
 
-            <!-- Search Bar com Ações em Lote -->
+            <!-- Navigation Bar -->
+            <div class="navigation-bar">
+                <!-- Botões de Navegação -->
+                <div class="nav-buttons">
+                    <button id="backBtn" class="nav-btn" onclick="navigateBack()" title="Voltar" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <button id="forwardBtn" class="nav-btn" onclick="navigateForward()" title="Avançar" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Breadcrumb -->
+                <div class="breadcrumb-container">
+                    <svg class="breadcrumb-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    </svg>
+                    <span id="breadcrumb" class="breadcrumb-text">Raiz</span>
+                </div>
+
+                <!-- Ações em Lote -->
+                <div class="bulk-actions">
+                    <button id="bulkMoveBtn" class="bulk-action-btn move" onclick="bulkMove()" title="Mover selecionados" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="12" y1="11" x2="12" y2="17"></line>
+                            <polyline points="9 14 12 17 15 14"></polyline>
+                        </svg>
+                    </button>
+                    
+                    <button id="bulkDeleteBtn" class="bulk-action-btn delete" onclick="bulkDelete()" title="Excluir selecionados" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                    
+                    <button class="bulk-action-btn" onclick="sincronizarDados()" title="Sincronizar" style="opacity: 1;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
             <div class="search-bar-wrapper">
                 <div class="search-bar">
                     <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"></circle>
                         <path d="m21 21-4.35-4.35"></path>
                     </svg>
-                    <input type="text" id="search" placeholder="Pesquisar documentos..." oninput="filterDocumentos()">
-                    
-                    <!-- Ações em Lote -->
-                    <div class="bulk-actions">
-                        <button id="bulkMoveBtn" class="bulk-action-btn move" onclick="bulkMove()" title="Mover selecionados" disabled>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="12" y1="11" x2="12" y2="17"></line>
-                                <polyline points="9 14 12 17 15 14"></polyline>
-                            </svg>
-                        </button>
-                        
-                        <button id="bulkDeleteBtn" class="bulk-action-btn delete" onclick="bulkDelete()" title="Excluir selecionados" disabled>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                <line x1="10" y1="11" x2="10" y2="17"></line>
-                                <line x1="14" y1="11" x2="14" y2="17"></line>
-                            </svg>
-                        </button>
-                        
-                        <button class="bulk-action-btn" onclick="sincronizarDados()" title="Sincronizar">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                <polyline points="23 4 23 10 17 10"></polyline>
-                                <polyline points="1 20 1 14 7 14"></polyline>
-                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                            </svg>
-                        </button>
-                    </div>
+                    <input type="text" id="search" placeholder="Pesquisar..." oninput="filterDocumentos()">
                 </div>
             </div>
 
@@ -76,49 +111,6 @@
             <div class="card table-card">
                 <div id="documentosContainer"></div>
             </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE FORMULÁRIO -->
-    <div class="modal-overlay" id="formModal" style="display: none;">
-        <div class="modal-content form-modal">
-            <div class="modal-header">
-                <h3 class="modal-title" id="formTitle">Novo Item</h3>
-                <button class="close-modal" onclick="closeFormModal()">✕</button>
-            </div>
-            
-            <form id="documentoForm" onsubmit="handleFormSubmit(event)">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="tipoItem">Tipo *</label>
-                        <select id="tipoItem" required onchange="document.getElementById('tamanhoItem').disabled = this.value === 'pasta'">
-                            <option value="arquivo">Arquivo</option>
-                            <option value="pasta">Pasta</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="nomeItem">Nome *</label>
-                        <input type="text" id="nomeItem" required placeholder="Ex: Relatório_2026.pdf">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="tamanhoItem">Tamanho</label>
-                        <input type="text" id="tamanhoItem" placeholder="Ex: 2.4 MB">
-                        <small style="color: var(--text-secondary); font-size: 0.85rem;">Deixe vazio para pastas</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="proprietarioItem">Proprietário *</label>
-                        <input type="text" id="proprietarioItem" required placeholder="Nome do responsável">
-                    </div>
-                </div>
-
-                <div class="modal-actions">
-                    <button type="button" onclick="closeFormModal()" class="secondary">Cancelar</button>
-                    <button type="submit" class="primary">Salvar</button>
-                </div>
-            </form>
         </div>
     </div>
 
