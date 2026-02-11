@@ -3,23 +3,19 @@
 // ============================================
 const DEVELOPMENT_MODE = false;
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = 'https://controle-documentos.onrender.com/api';
+const API_URL = window.location.origin + '/api'; // USA O PRÓPRIO DOMÍNIO
 
 let documentos = [];
 let isOnline = false;
-let lastDataHash = '';
 let sessionToken = null;
 let currentMonth = new Date();
 let graficoYear = new Date().getFullYear();
-let graficoChart = null;
 let editingId = null;
 
 const meses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
-
-const mesesAbrev = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 console.log('✅ Controle de Documentos iniciado');
 console.log('📍 API URL:', API_URL);
@@ -36,40 +32,67 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionToken = 'dev-mode';
         inicializarApp();
     } else {
-        verificarAutenticacao();
+        // CORREÇÃO: Pegar sessionToken da URL
+        obterSessionToken();
     }
     
     setTimeout(setupEventDelegation, 100);
 });
 
 // ============================================
-// AUTENTICAÇÃO
+// AUTENTICAÇÃO CORRIGIDA
 // ============================================
-async function verificarAutenticacao() {
+function obterSessionToken() {
+    // Pegar sessionToken da URL (passado pelo portal)
+    const params = new URLSearchParams(window.location.search);
+    sessionToken = params.get('sessionToken');
+    
+    console.log('🔑 SessionToken obtido:', sessionToken ? 'SIM' : 'NÃO');
+    
+    if (!sessionToken) {
+        console.error('❌ SessionToken não encontrado na URL');
+        showToast('Sessão inválida, redirecionando...', 'error');
+        setTimeout(() => {
+            window.location.href = PORTAL_URL;
+        }, 2000);
+        return;
+    }
+    
+    // Verificar se o token é válido
+    verificarSessionToken();
+}
+
+async function verificarSessionToken() {
     try {
-        const response = await fetch(`${PORTAL_URL}/api/check-session`, {
-            method: 'GET',
-            credentials: 'include'
+        console.log('🔍 Verificando sessionToken...');
+        
+        const response = await fetch(`${PORTAL_URL}/api/verify-session`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ sessionToken })
         });
 
         if (!response.ok) {
-            window.location.href = PORTAL_URL;
-            return;
+            throw new Error('Token inválido');
         }
 
         const data = await response.json();
         
-        if (data.authenticated && data.sessionToken) {
-            sessionToken = data.sessionToken;
-            console.log('✅ Usuário autenticado');
-            inicializarApp();
-        } else {
-            console.log('❌ Não autenticado, redirecionando...');
-            window.location.href = PORTAL_URL;
+        if (!data.valid) {
+            throw new Error('Sessão expirada');
         }
+        
+        console.log('✅ Sessão válida, inicializando...');
+        inicializarApp();
+        
     } catch (error) {
-        console.error('❌ Erro ao verificar autenticação:', error);
-        window.location.href = PORTAL_URL;
+        console.error('❌ Erro ao verificar sessão:', error);
+        showToast('Sessão inválida, redirecionando...', 'error');
+        setTimeout(() => {
+            window.location.href = PORTAL_URL;
+        }, 2000);
     }
 }
 
@@ -77,15 +100,12 @@ function inicializarApp() {
     console.log('🔧 Configurando aplicação...');
     
     if (DEVELOPMENT_MODE) {
-        // Modo desenvolvimento - usar dados de exemplo
         carregarDadosExemplo();
         updateConnectionStatus(true);
     } else {
-        // Modo produção - carregar do servidor
         carregarDocumentos();
     }
     
-    // Atualizar interface
     updateCurrentMonth();
     updateAllFilters();
     updateDashboard();
@@ -132,28 +152,6 @@ function carregarDadosExemplo() {
             data_vencimento: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-08`,
             status: 'Atrasado',
             observacoes: 'Relatório mensal de vendas'
-        },
-        {
-            id: '4',
-            tipo_documento: 'Proposta',
-            numero_documento: 'PROP-2026-012',
-            departamento: 'Comercial',
-            responsavel: 'Carlos Mendes',
-            data_emissao: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-12`,
-            data_vencimento: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-28`,
-            status: 'Pendente',
-            observacoes: 'Proposta comercial cliente XYZ'
-        },
-        {
-            id: '5',
-            tipo_documento: 'Contrato',
-            numero_documento: 'CT-2026-002',
-            departamento: 'Recursos Humanos',
-            responsavel: 'Patricia Costa',
-            data_emissao: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-15`,
-            data_vencimento: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-30`,
-            status: 'Em Análise',
-            observacoes: 'Contrato de trabalho novo colaborador'
         }
     ];
     
@@ -161,7 +159,7 @@ function carregarDadosExemplo() {
 }
 
 // ============================================
-// INTEGRAÇÃO COM API
+// INTEGRAÇÃO COM API (CORRIGIDA)
 // ============================================
 async function carregarDocumentos() {
     try {
@@ -220,13 +218,11 @@ async function salvarDocumento(formData) {
         const data = await response.json();
         
         if (editingId) {
-            // Atualizar documento existente
             const index = documentos.findIndex(d => String(d.id) === String(editingId));
             if (index !== -1) {
                 documentos[index] = data;
             }
         } else {
-            // Adicionar novo documento
             documentos.push(data);
         }
         
@@ -350,10 +346,8 @@ async function handleDeleteClick(id) {
     
     try {
         if (DEVELOPMENT_MODE) {
-            // Modo desenvolvimento - remover localmente
             documentos = documentos.filter(d => String(d.id) !== String(id));
         } else {
-            // Modo produção - excluir no servidor
             await excluirDocumento(id);
         }
         
@@ -426,7 +420,6 @@ async function handleFormSubmit(event) {
     
     try {
         if (DEVELOPMENT_MODE) {
-            // Modo desenvolvimento
             if (editingId) {
                 const index = documentos.findIndex(d => String(d.id) === String(editingId));
                 if (index !== -1) {
@@ -439,7 +432,6 @@ async function handleFormSubmit(event) {
                 showToast('Documento criado com sucesso!', 'success');
             }
         } else {
-            // Modo produção - salvar no servidor
             await salvarDocumento(formData);
             showToast(editingId ? 'Documento atualizado com sucesso!' : 'Documento criado com sucesso!', 'success');
         }
@@ -492,7 +484,6 @@ function updateDashboard() {
     document.getElementById('statTotal').textContent = stats.total;
     document.getElementById('statPendentes').textContent = stats.pendentes;
     
-    // Atualizar card de atrasados
     const cardAtrasados = document.getElementById('cardAtrasados');
     if (stats.atrasados > 0) {
         cardAtrasados.style.cursor = 'pointer';
@@ -525,7 +516,6 @@ function calcularEstatisticas() {
 // FILTROS
 // ============================================
 function updateAllFilters() {
-    // Atualizar departamentos
     const departamentos = [...new Set(documentos.map(d => d.departamento))].filter(Boolean).sort();
     const filterDepartamento = document.getElementById('filterDepartamento');
     const currentDept = filterDepartamento.value;
@@ -539,7 +529,6 @@ function updateAllFilters() {
     });
     filterDepartamento.value = currentDept;
     
-    // Atualizar responsáveis
     const responsaveis = [...new Set(documentos.map(d => d.responsavel))].filter(Boolean).sort();
     const filterResponsavel = document.getElementById('filterResponsavel');
     const currentResp = filterResponsavel.value;
@@ -553,7 +542,6 @@ function updateAllFilters() {
     });
     filterResponsavel.value = currentResp;
     
-    // Atualizar status
     const statusOptions = ['Pendente', 'Em Análise', 'Processado', 'Atrasado'];
     const filterStatus = document.getElementById('filterStatus');
     const currentStatus = filterStatus.value;
@@ -582,10 +570,8 @@ function filterDocumentos() {
         const mesDoc = dataEmissao.getMonth();
         const anoDoc = dataEmissao.getFullYear();
         
-        // Filtro de mês
         if (mesDoc !== mesAtual || anoDoc !== anoAtual) return false;
         
-        // Filtro de busca
         if (searchTerm) {
             const searchFields = [
                 doc.numero_documento,
@@ -599,7 +585,6 @@ function filterDocumentos() {
             if (!searchFields.includes(searchTerm)) return false;
         }
         
-        // Filtros de dropdown
         if (filterDept && doc.departamento !== filterDept) return false;
         if (filterResp && doc.responsavel !== filterResp) return false;
         if (filterStat && doc.status !== filterStat) return false;
@@ -923,14 +908,6 @@ function changeCalendarYear(delta) {
 }
 
 // ============================================
-// SINCRONIZAÇÃO
-// ============================================
-function sincronizarDados() {
-    showToast('Dados sincronizados com sucesso!', 'success');
-    console.log('🔄 Sincronização executada');
-}
-
-// ============================================
 // UTILITÁRIOS
 // ============================================
 function formatarData(dataStr) {
@@ -982,7 +959,6 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
-// Adicionar animações CSS
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
