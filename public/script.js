@@ -8,10 +8,12 @@ const API_URL = window.location.origin + '/api';
 let documentos = [];
 let isOnline = false;
 let sessionToken = null;
-let editingId = null;
 let selectedIds = new Set();
+let currentPath = []; // Caminho atual da navegação
+let navigationHistory = []; // Histórico de navegação
+let historyIndex = -1; // Índice atual no histórico
 
-console.log('✅ Controle de Documentos iniciado');
+console.log('✅ Gerenciador de Documentos iniciado');
 console.log('📍 API URL:', API_URL);
 
 // ============================================
@@ -96,6 +98,8 @@ function inicializarApp() {
         carregarDocumentos();
     }
     
+    navigateToRoot();
+    
     console.log('✅ Aplicação inicializada com sucesso!');
 }
 
@@ -105,6 +109,7 @@ function carregarDadosExemplo() {
             id: '1',
             tipo: 'pasta',
             nome: 'Contratos 2026',
+            pasta_pai_id: null,
             tamanho: null,
             data_modificacao: '2026-02-10',
             proprietario: 'Roberto Silva'
@@ -113,22 +118,27 @@ function carregarDadosExemplo() {
             id: '2',
             tipo: 'arquivo',
             nome: 'Contrato_Fornecedor_XYZ.pdf',
+            pasta_pai_id: '1',
             tamanho: '2.4 MB',
             data_modificacao: '2026-02-11',
-            proprietario: 'Maria Santos'
+            proprietario: 'Maria Santos',
+            mime_type: 'application/pdf'
         },
         {
             id: '3',
             tipo: 'arquivo',
             nome: 'NF_45678.pdf',
+            pasta_pai_id: null,
             tamanho: '856 KB',
             data_modificacao: '2026-02-10',
-            proprietario: 'João Costa'
+            proprietario: 'João Costa',
+            mime_type: 'application/pdf'
         },
         {
             id: '4',
             tipo: 'pasta',
             nome: 'Relatórios Mensais',
+            pasta_pai_id: null,
             tamanho: null,
             data_modificacao: '2026-02-09',
             proprietario: 'Ana Paula'
@@ -137,14 +147,128 @@ function carregarDadosExemplo() {
             id: '5',
             tipo: 'arquivo',
             nome: 'Proposta_Cliente_ABC.docx',
+            pasta_pai_id: null,
             tamanho: '1.2 MB',
             data_modificacao: '2026-02-11',
-            proprietario: 'Carlos Mendes'
+            proprietario: 'Carlos Mendes',
+            mime_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         }
     ];
     
-    renderDocumentos(documentos);
     console.log('📄 Documentos de exemplo carregados:', documentos.length);
+}
+
+// ============================================
+// NAVEGAÇÃO
+// ============================================
+function navigateToRoot() {
+    currentPath = [];
+    addToHistory(null);
+    updateBreadcrumb();
+    filterDocumentos();
+    updateNavigationButtons();
+}
+
+function navigateToFolder(folderId, folderName) {
+    currentPath.push({ id: folderId, name: folderName });
+    addToHistory(folderId);
+    updateBreadcrumb();
+    filterDocumentos();
+    updateNavigationButtons();
+}
+
+function navigateToPath(pathIndex) {
+    currentPath = currentPath.slice(0, pathIndex);
+    const folderId = pathIndex > 0 ? currentPath[pathIndex - 1].id : null;
+    addToHistory(folderId);
+    updateBreadcrumb();
+    filterDocumentos();
+    updateNavigationButtons();
+}
+
+function addToHistory(folderId) {
+    // Remove itens à frente do índice atual
+    navigationHistory = navigationHistory.slice(0, historyIndex + 1);
+    navigationHistory.push(folderId);
+    historyIndex = navigationHistory.length - 1;
+}
+
+function navigateBack() {
+    if (historyIndex > 0) {
+        historyIndex--;
+        const folderId = navigationHistory[historyIndex];
+        restorePathFromFolderId(folderId);
+        updateBreadcrumb();
+        filterDocumentos();
+        updateNavigationButtons();
+    }
+}
+
+function navigateForward() {
+    if (historyIndex < navigationHistory.length - 1) {
+        historyIndex++;
+        const folderId = navigationHistory[historyIndex];
+        restorePathFromFolderId(folderId);
+        updateBreadcrumb();
+        filterDocumentos();
+        updateNavigationButtons();
+    }
+}
+
+function restorePathFromFolderId(folderId) {
+    if (!folderId) {
+        currentPath = [];
+        return;
+    }
+    
+    // Reconstruir caminho até a pasta
+    const path = [];
+    let currentId = folderId;
+    
+    while (currentId) {
+        const folder = documentos.find(d => d.id === currentId && d.tipo === 'pasta');
+        if (!folder) break;
+        
+        path.unshift({ id: folder.id, name: folder.nome });
+        currentId = folder.pasta_pai_id;
+    }
+    
+    currentPath = path;
+}
+
+function updateBreadcrumb() {
+    const breadcrumb = document.getElementById('breadcrumb');
+    
+    if (currentPath.length === 0) {
+        breadcrumb.textContent = 'Raiz';
+        return;
+    }
+    
+    let pathText = 'Raiz';
+    currentPath.forEach((folder, index) => {
+        pathText += ` > ${folder.name}`;
+    });
+    
+    breadcrumb.textContent = pathText;
+}
+
+function updateNavigationButtons() {
+    const backBtn = document.getElementById('backBtn');
+    const forwardBtn = document.getElementById('forwardBtn');
+    
+    if (backBtn) {
+        backBtn.disabled = historyIndex <= 0;
+        backBtn.style.opacity = historyIndex <= 0 ? '0.3' : '1';
+    }
+    
+    if (forwardBtn) {
+        forwardBtn.disabled = historyIndex >= navigationHistory.length - 1;
+        forwardBtn.style.opacity = historyIndex >= navigationHistory.length - 1 ? '0.3' : '1';
+    }
+}
+
+function getCurrentFolderId() {
+    return currentPath.length > 0 ? currentPath[currentPath.length - 1].id : null;
 }
 
 // ============================================
@@ -180,42 +304,91 @@ async function carregarDocumentos() {
     }
 }
 
-async function salvarDocumento(formData) {
+async function criarPasta(nome) {
     try {
-        const url = editingId 
-            ? `${API_URL}/documentos/${editingId}`
-            : `${API_URL}/documentos`;
+        const formData = {
+            tipo: 'pasta',
+            nome: nome,
+            pasta_pai_id: getCurrentFolderId(),
+            tamanho: null,
+            data_modificacao: new Date().toISOString().split('T')[0],
+            proprietario: 'Usuário'
+        };
         
-        const method = editingId ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(formData)
-        });
-
-        if (!response.ok) {
-            throw new Error('Erro ao salvar documento');
-        }
-
-        const data = await response.json();
-        
-        if (editingId) {
-            const index = documentos.findIndex(d => String(d.id) === String(editingId));
-            if (index !== -1) {
-                documentos[index] = data;
-            }
+        if (DEVELOPMENT_MODE) {
+            const novoId = String(Math.max(...documentos.map(d => parseInt(d.id) || 0)) + 1);
+            documentos.push({ id: novoId, ...formData });
+            return { id: novoId, ...formData };
         } else {
+            const response = await fetch(`${API_URL}/documentos`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Token': sessionToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao criar pasta');
+            }
+
+            const data = await response.json();
             documentos.push(data);
+            return data;
         }
-        
-        return data;
     } catch (error) {
-        console.error('❌ Erro ao salvar documento:', error);
+        console.error('❌ Erro ao criar pasta:', error);
+        throw error;
+    }
+}
+
+async function uploadArquivo(file) {
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('pasta_pai_id', getCurrentFolderId() || '');
+        formData.append('tipo', 'arquivo');
+        formData.append('nome', file.name);
+        formData.append('tamanho', formatFileSize(file.size));
+        formData.append('data_modificacao', new Date().toISOString().split('T')[0]);
+        formData.append('proprietario', 'Usuário');
+        formData.append('mime_type', file.type);
+        
+        if (DEVELOPMENT_MODE) {
+            const novoId = String(Math.max(...documentos.map(d => parseInt(d.id) || 0)) + 1);
+            const novoDoc = {
+                id: novoId,
+                tipo: 'arquivo',
+                nome: file.name,
+                pasta_pai_id: getCurrentFolderId(),
+                tamanho: formatFileSize(file.size),
+                data_modificacao: new Date().toISOString().split('T')[0],
+                proprietario: 'Usuário',
+                mime_type: file.type
+            };
+            documentos.push(novoDoc);
+            return novoDoc;
+        } else {
+            const response = await fetch(`${API_URL}/upload`, {
+                method: 'POST',
+                headers: {
+                    'X-Session-Token': sessionToken
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao fazer upload');
+            }
+
+            const data = await response.json();
+            documentos.push(data);
+            return data;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao fazer upload:', error);
         throw error;
     }
 }
@@ -223,16 +396,18 @@ async function salvarDocumento(formData) {
 async function excluirDocumentos(ids) {
     try {
         for (const id of ids) {
-            const response = await fetch(`${API_URL}/documentos/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-Session-Token': sessionToken,
-                    'Accept': 'application/json'
-                }
-            });
+            if (!DEVELOPMENT_MODE) {
+                const response = await fetch(`${API_URL}/documentos/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Session-Token': sessionToken,
+                        'Accept': 'application/json'
+                    }
+                });
 
-            if (!response.ok) {
-                throw new Error('Erro ao excluir documento');
+                if (!response.ok) {
+                    throw new Error('Erro ao excluir documento');
+                }
             }
         }
         
@@ -268,7 +443,9 @@ function toggleSelectAll(checkbox) {
     selectedIds.clear();
     
     if (checkbox.checked) {
-        documentos.forEach(doc => {
+        const currentFolderId = getCurrentFolderId();
+        const visibleDocs = documentos.filter(d => d.pasta_pai_id === currentFolderId);
+        visibleDocs.forEach(doc => {
             selectedIds.add(String(doc.id));
         });
     }
@@ -287,9 +464,11 @@ function toggleSelectDoc(checkbox, id) {
         selectedIds.delete(String(id));
     }
     
+    const currentFolderId = getCurrentFolderId();
+    const visibleDocs = documentos.filter(d => d.pasta_pai_id === currentFolderId);
     const selectAllCheckbox = document.getElementById('selectAll');
     if (selectAllCheckbox) {
-        selectAllCheckbox.checked = selectedIds.size === documentos.length && documentos.length > 0;
+        selectAllCheckbox.checked = selectedIds.size === visibleDocs.length && visibleDocs.length > 0;
     }
     
     updateActionButtons();
@@ -303,9 +482,13 @@ function updateActionButtons() {
         if (selectedIds.size > 0) {
             deleteBtn.disabled = false;
             moveBtn.disabled = false;
+            deleteBtn.style.opacity = '1';
+            moveBtn.style.opacity = '1';
         } else {
             deleteBtn.disabled = true;
             moveBtn.disabled = true;
+            deleteBtn.style.opacity = '0.3';
+            moveBtn.style.opacity = '0.3';
         }
     }
 }
@@ -327,11 +510,7 @@ function bulkDelete() {
 
 async function handleBulkDelete() {
     try {
-        if (DEVELOPMENT_MODE) {
-            documentos = documentos.filter(d => !selectedIds.has(String(d.id)));
-        } else {
-            await excluirDocumentos(Array.from(selectedIds));
-        }
+        await excluirDocumentos(Array.from(selectedIds));
         
         selectedIds.clear();
         filterDocumentos();
@@ -357,12 +536,11 @@ function showMoveModal() {
     modal.className = 'modal-overlay';
     modal.style.display = 'flex';
     
-    // Buscar todas as pastas
-    const pastas = documentos.filter(d => d.tipo === 'pasta');
+    const todasPastas = documentos.filter(d => d.tipo === 'pasta');
     
-    let optionsPastas = '<option value="">Selecione uma pasta</option>';
-    pastas.forEach(pasta => {
-        optionsPastas += `<option value="${pasta.id}">${escapeHtml(pasta.nome)}</option>`;
+    let optionsPastas = '<option value="">📁 Raiz</option>';
+    todasPastas.forEach(pasta => {
+        optionsPastas += `<option value="${pasta.id}">📁 ${escapeHtml(pasta.nome)}</option>`;
     });
     
     modal.innerHTML = `
@@ -393,26 +571,112 @@ function showMoveModal() {
 
 function confirmMove() {
     const select = document.getElementById('destinoPasta');
-    const destinoId = select.value;
+    const destinoId = select.value || null;
+    const destinoNome = select.options[select.selectedIndex].text;
     
-    if (!destinoId) {
-        showToast('Selecione uma pasta de destino', 'error');
-        return;
-    }
+    // Atualizar pasta_pai_id dos itens selecionados
+    selectedIds.forEach(id => {
+        const doc = documentos.find(d => d.id === id);
+        if (doc) {
+            doc.pasta_pai_id = destinoId;
+        }
+    });
     
-    const destino = documentos.find(d => d.id === destinoId);
+    showToast(`${selectedIds.size} item(ns) movido(s) para ${destinoNome}`, 'success');
     
-    showToast(`${selectedIds.size} item(ns) movido(s) para "${destino.nome}"`, 'success');
-    
-    // Limpar seleção
     selectedIds.clear();
     updateActionButtons();
     
-    // Fechar modal
     document.querySelector('.modal-overlay').remove();
     
-    // Recarregar lista
     filterDocumentos();
+}
+
+// ============================================
+// UPLOAD DE ARQUIVOS
+// ============================================
+function showUploadDialog() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.onchange = handleFileSelect;
+    input.click();
+}
+
+async function handleFileSelect(event) {
+    const files = event.target.files;
+    if (files.length === 0) return;
+    
+    const uploadPromises = [];
+    
+    for (let i = 0; i < files.length; i++) {
+        uploadPromises.push(uploadArquivo(files[i]));
+    }
+    
+    try {
+        showToast(`Fazendo upload de ${files.length} arquivo(s)...`, 'info');
+        await Promise.all(uploadPromises);
+        showToast(`${files.length} arquivo(s) enviado(s) com sucesso!`, 'success');
+        filterDocumentos();
+    } catch (error) {
+        showToast('Erro ao fazer upload de arquivos', 'error');
+    }
+}
+
+// ============================================
+// CRIAÇÃO DE PASTA
+// ============================================
+function toggleForm() {
+    showNovaPassaModal();
+}
+
+function showNovaPassaModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Nova Pasta</h3>
+                <button class="close-modal" onclick="this.closest('.modal-overlay').remove()">✕</button>
+            </div>
+            
+            <form onsubmit="handleNovaPastaSubmit(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="nomePasta">Nome da Pasta *</label>
+                        <input type="text" id="nomePasta" required placeholder="Digite o nome da pasta">
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        📁 A pasta será criada em: <strong>${currentPath.length > 0 ? currentPath[currentPath.length - 1].name : 'Raiz'}</strong>
+                    </p>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" onclick="this.closest('.modal-overlay').remove()" class="secondary">Cancelar</button>
+                    <button type="submit" class="primary">Criar</button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+async function handleNovaPastaSubmit(event) {
+    event.preventDefault();
+    
+    const nomePasta = document.getElementById('nomePasta').value;
+    
+    try {
+        await criarPasta(nomePasta);
+        showToast(`Pasta "${nomePasta}" criada com sucesso!`, 'success');
+        document.querySelector('.modal-overlay').remove();
+        filterDocumentos();
+    } catch (error) {
+        showToast('Erro ao criar pasta', 'error');
+    }
 }
 
 // ============================================
@@ -431,11 +695,8 @@ function setupEventDelegation() {
         console.log('🖱️ Ação:', action, 'ID:', id);
         
         switch(action) {
-            case 'view':
-                handleViewClick(id);
-                break;
-            case 'edit':
-                handleEditClick(id);
+            case 'open':
+                handleOpenClick(id);
                 break;
             case 'delete':
                 handleDeleteClick(id);
@@ -449,38 +710,22 @@ function setupEventDelegation() {
 // ============================================
 // HANDLERS DE EVENTOS
 // ============================================
-function handleViewClick(id) {
-    console.log('👁️ Visualizar documento:', id);
-    
+function handleOpenClick(id) {
     const doc = documentos.find(d => String(d.id) === String(id));
-    if (!doc) {
-        showToast('Documento não encontrado!', 'error');
-        return;
+    if (!doc) return;
+    
+    if (doc.tipo === 'pasta') {
+        navigateToFolder(doc.id, doc.nome);
+    } else {
+        // Abrir/baixar arquivo
+        showToast(`Abrindo ${doc.nome}...`, 'info');
     }
-    
-    mostrarModalVisualizacao(doc);
-}
-
-function handleEditClick(id) {
-    console.log('✏️ Editar documento:', id);
-    
-    const doc = documentos.find(d => String(d.id) === String(id));
-    if (!doc) {
-        showToast('Documento não encontrado!', 'error');
-        return;
-    }
-    
-    editingId = id;
-    preencherFormulario(doc);
-    showFormModal();
 }
 
 async function handleDeleteClick(id) {
-    console.log('🗑️ Excluir documento:', id);
-    
     const doc = documentos.find(d => String(d.id) === String(id));
     if (!doc) {
-        showToast('Documento não encontrado!', 'error');
+        showToast('Item não encontrado!', 'error');
         return;
     }
     
@@ -488,92 +733,11 @@ async function handleDeleteClick(id) {
     if (!confirmado) return;
     
     try {
-        if (DEVELOPMENT_MODE) {
-            documentos = documentos.filter(d => String(d.id) !== String(id));
-        } else {
-            await excluirDocumentos([id]);
-        }
-        
+        await excluirDocumentos([id]);
         filterDocumentos();
-        
         showToast(`"${doc.nome}" excluído com sucesso!`, 'success');
     } catch (error) {
-        showToast('Erro ao excluir documento', 'error');
-    }
-}
-
-// ============================================
-// FORMULÁRIO
-// ============================================
-function toggleForm() {
-    editingId = null;
-    limparFormulario();
-    showFormModal();
-}
-
-function showFormModal() {
-    const modal = document.getElementById('formModal');
-    const title = document.getElementById('formTitle');
-    
-    if (editingId) {
-        title.textContent = 'Editar Item';
-    } else {
-        title.textContent = 'Novo Item';
-    }
-    
-    modal.style.display = 'flex';
-}
-
-function closeFormModal() {
-    document.getElementById('formModal').style.display = 'none';
-    editingId = null;
-    limparFormulario();
-}
-
-function limparFormulario() {
-    document.getElementById('documentoForm').reset();
-}
-
-function preencherFormulario(doc) {
-    document.getElementById('tipoItem').value = doc.tipo || 'arquivo';
-    document.getElementById('nomeItem').value = doc.nome || '';
-    document.getElementById('tamanhoItem').value = doc.tamanho || '';
-    document.getElementById('proprietarioItem').value = doc.proprietario || '';
-}
-
-async function handleFormSubmit(event) {
-    event.preventDefault();
-    
-    const formData = {
-        tipo: document.getElementById('tipoItem').value,
-        nome: document.getElementById('nomeItem').value,
-        tamanho: document.getElementById('tipoItem').value === 'pasta' ? null : document.getElementById('tamanhoItem').value,
-        data_modificacao: new Date().toISOString().split('T')[0],
-        proprietario: document.getElementById('proprietarioItem').value
-    };
-    
-    try {
-        if (DEVELOPMENT_MODE) {
-            if (editingId) {
-                const index = documentos.findIndex(d => String(d.id) === String(editingId));
-                if (index !== -1) {
-                    documentos[index] = { ...documentos[index], ...formData };
-                    showToast('Item atualizado com sucesso!', 'success');
-                }
-            } else {
-                const novoId = String(Math.max(...documentos.map(d => parseInt(d.id) || 0)) + 1);
-                documentos.push({ id: novoId, ...formData });
-                showToast('Item criado com sucesso!', 'success');
-            }
-        } else {
-            await salvarDocumento(formData);
-            showToast(editingId ? 'Item atualizado com sucesso!' : 'Item criado com sucesso!', 'success');
-        }
-        
-        closeFormModal();
-        filterDocumentos();
-    } catch (error) {
-        showToast('Erro ao salvar item', 'error');
+        showToast('Erro ao excluir item', 'error');
     }
 }
 
@@ -597,15 +761,18 @@ function updateConnectionStatus(online) {
 // FILTROS
 // ============================================
 function filterDocumentos() {
-    const searchTerm = document.getElementById('search').value.toLowerCase();
+    const searchTerm = document.getElementById('search')?.value.toLowerCase() || '';
+    const currentFolderId = getCurrentFolderId();
     
     const documentosFiltrados = documentos.filter(doc => {
+        // Filtrar pela pasta atual
+        if (doc.pasta_pai_id !== currentFolderId) return false;
+        
+        // Filtrar por termo de busca
         if (searchTerm) {
             const searchFields = [
                 doc.nome,
-                doc.tipo,
-                doc.proprietario,
-                doc.tamanho
+                doc.proprietario
             ].join(' ').toLowerCase();
             
             if (!searchFields.includes(searchTerm)) return false;
@@ -623,14 +790,26 @@ function filterDocumentos() {
 function renderDocumentos(docs) {
     const container = document.getElementById('documentosContainer');
     
-    if (docs.length === 0) {
+    // Separar pastas e arquivos
+    const pastas = docs.filter(d => d.tipo === 'pasta').sort((a, b) => a.nome.localeCompare(b.nome));
+    const arquivos = docs.filter(d => d.tipo === 'arquivo').sort((a, b) => a.nome.localeCompare(b.nome));
+    const sorted = [...pastas, ...arquivos];
+    
+    if (sorted.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                 </svg>
-                <p>Nenhum item encontrado</p>
+                <p>Pasta vazia</p>
+                <button onclick="showUploadDialog()" class="btn-upload-empty">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    Fazer Upload
+                </button>
             </div>
         `;
         return;
@@ -644,58 +823,42 @@ function renderDocumentos(docs) {
                         <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" class="doc-checkbox-header">
                     </th>
                     <th>Nome</th>
-                    <th>Tipo</th>
-                    <th>Tamanho</th>
-                    <th>Última Modificação</th>
-                    <th>Proprietário</th>
-                    <th class="actions-column">Ações</th>
+                    <th style="width: 150px;">Tamanho</th>
+                    <th style="width: 180px;">Última Modificação</th>
+                    <th style="width: 180px;">Proprietário</th>
+                    <th class="actions-column" style="width: 100px;">Ações</th>
                 </tr>
             </thead>
             <tbody>
     `;
     
-    docs.forEach(doc => {
+    sorted.forEach(doc => {
         const isChecked = selectedIds.has(String(doc.id)) ? 'checked' : '';
         const icon = doc.tipo === 'pasta' 
             ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>'
             : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
         
         html += `
-            <tr data-id="${doc.id}">
-                <td>
+            <tr data-id="${doc.id}" style="cursor: ${doc.tipo === 'pasta' ? 'pointer' : 'default'};">
+                <td onclick="event.stopPropagation()">
                     <input type="checkbox" class="doc-checkbox" ${isChecked} onchange="toggleSelectDoc(this, '${doc.id}')">
                 </td>
-                <td>
+                <td data-action="open" data-id="${doc.id}">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         ${icon}
-                        <strong>${escapeHtml(doc.nome || doc.numero_documento)}</strong>
+                        <strong>${escapeHtml(doc.nome)}</strong>
                     </div>
                 </td>
-                <td>${escapeHtml(doc.tipo || 'arquivo')}</td>
                 <td>${escapeHtml(doc.tamanho || '-')}</td>
-                <td>${formatarData(doc.data_modificacao || doc.data_emissao)}</td>
-                <td>${escapeHtml(doc.proprietario || doc.responsavel)}</td>
+                <td>${formatarData(doc.data_modificacao)}</td>
+                <td>${escapeHtml(doc.proprietario)}</td>
                 <td class="actions-column">
-                    <div class="action-buttons">
-                        <button class="action-btn view-btn" data-action="view" data-id="${doc.id}" title="Visualizar">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                        </button>
-                        <button class="action-btn edit-btn" data-action="edit" data-id="${doc.id}" title="Editar">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                        </button>
-                        <button class="action-btn delete-btn" data-action="delete" data-id="${doc.id}" title="Excluir">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                        </button>
-                    </div>
+                    <button class="action-btn delete-btn" data-action="delete" data-id="${doc.id}" title="Excluir" onclick="event.stopPropagation()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
                 </td>
             </tr>
         `;
@@ -707,58 +870,7 @@ function renderDocumentos(docs) {
     `;
     
     container.innerHTML = html;
-    
-    // Restaurar estado dos checkboxes
     updateActionButtons();
-}
-
-// ============================================
-// MODAL DE VISUALIZAÇÃO
-// ============================================
-function mostrarModalVisualizacao(doc) {
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.style.display = 'flex';
-    
-    modal.innerHTML = `
-        <div class="modal-content view-modal">
-            <div class="modal-header">
-                <h3 class="modal-title">Detalhes do Item</h3>
-                <button class="close-modal" onclick="this.closest('.modal-overlay').remove()">✕</button>
-            </div>
-            
-            <div class="view-content">
-                <div class="view-row">
-                    <div class="view-label">Nome:</div>
-                    <div class="view-value"><strong>${escapeHtml(doc.nome || doc.numero_documento)}</strong></div>
-                </div>
-                <div class="view-row">
-                    <div class="view-label">Tipo:</div>
-                    <div class="view-value">${escapeHtml(doc.tipo || 'arquivo')}</div>
-                </div>
-                ${doc.tamanho ? `
-                <div class="view-row">
-                    <div class="view-label">Tamanho:</div>
-                    <div class="view-value">${escapeHtml(doc.tamanho)}</div>
-                </div>
-                ` : ''}
-                <div class="view-row">
-                    <div class="view-label">Última Modificação:</div>
-                    <div class="view-value">${formatarData(doc.data_modificacao || doc.data_emissao)}</div>
-                </div>
-                <div class="view-row">
-                    <div class="view-label">Proprietário:</div>
-                    <div class="view-value">${escapeHtml(doc.proprietario || doc.responsavel)}</div>
-                </div>
-            </div>
-            
-            <div class="modal-actions">
-                <button type="button" onclick="this.closest('.modal-overlay').remove()" class="secondary">Fechar</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
 }
 
 // ============================================
@@ -768,6 +880,14 @@ function formatarData(dataStr) {
     if (!dataStr) return '-';
     const data = new Date(dataStr + 'T00:00:00');
     return data.toLocaleDateString('pt-BR');
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
 function escapeHtml(text) {
@@ -828,33 +948,34 @@ style.textContent = `
     
     .empty-state p {
         font-size: 1.1rem;
+        margin-bottom: 1.5rem;
     }
     
-    .view-content {
-        padding: 1rem 0;
-    }
-    
-    .view-row {
-        display: grid;
-        grid-template-columns: 200px 1fr;
-        gap: 1rem;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    .view-label {
+    .btn-upload-empty {
+        background: var(--info-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.95rem;
         font-weight: 600;
-        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
     }
     
-    .view-value {
-        color: var(--text-primary);
+    .btn-upload-empty:hover {
+        background: #2563EB;
+        transform: translateY(-1px);
     }
     
     .doc-checkbox, .doc-checkbox-header {
         width: 18px;
         height: 18px;
         cursor: pointer;
+        accent-color: var(--primary);
     }
     
     .bulk-action-btn {
@@ -871,7 +992,6 @@ style.textContent = `
     }
     
     .bulk-action-btn:disabled {
-        opacity: 0.3;
         cursor: not-allowed;
     }
     
@@ -882,10 +1002,12 @@ style.textContent = `
     
     .bulk-action-btn.delete:not(:disabled):hover {
         color: #EF4444;
+        background: rgba(239, 68, 68, 0.1);
     }
     
     .bulk-action-btn.move:not(:disabled):hover {
         color: #3B82F6;
+        background: rgba(59, 130, 246, 0.1);
     }
 `;
 document.head.appendChild(style);
