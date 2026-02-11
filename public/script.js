@@ -3,23 +3,16 @@
 // ============================================
 const DEVELOPMENT_MODE = false;
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = window.location.origin + '/api'; // USA O PRÓPRIO DOMÍNIO
+const API_URL = window.location.origin + '/api';
 
 let documentos = [];
 let isOnline = false;
 let sessionToken = null;
-let currentMonth = new Date();
-let graficoYear = new Date().getFullYear();
 let editingId = null;
-
-const meses = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-];
+let selectedIds = new Set();
 
 console.log('✅ Controle de Documentos iniciado');
 console.log('📍 API URL:', API_URL);
-console.log('🔧 Modo desenvolvimento:', DEVELOPMENT_MODE);
 
 // ============================================
 // INICIALIZAÇÃO
@@ -32,7 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionToken = 'dev-mode';
         inicializarApp();
     } else {
-        // CORREÇÃO: Pegar sessionToken da URL
         obterSessionToken();
     }
     
@@ -40,10 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
-// AUTENTICAÇÃO CORRIGIDA
+// AUTENTICAÇÃO
 // ============================================
 function obterSessionToken() {
-    // Pegar sessionToken da URL (passado pelo portal)
     const params = new URLSearchParams(window.location.search);
     sessionToken = params.get('sessionToken');
     
@@ -58,7 +49,6 @@ function obterSessionToken() {
         return;
     }
     
-    // Verificar se o token é válido
     verificarSessionToken();
 }
 
@@ -106,60 +96,59 @@ function inicializarApp() {
         carregarDocumentos();
     }
     
-    updateCurrentMonth();
-    updateAllFilters();
-    updateDashboard();
-    filterDocumentos();
-    
     console.log('✅ Aplicação inicializada com sucesso!');
 }
 
 function carregarDadosExemplo() {
-    const hoje = new Date();
-    const mesAtual = hoje.getMonth();
-    const anoAtual = hoje.getFullYear();
-    
     documentos = [
         {
             id: '1',
-            tipo_documento: 'Contrato',
-            numero_documento: 'CT-2026-001',
-            departamento: 'Jurídico',
-            responsavel: 'Maria Silva',
-            data_emissao: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-05`,
-            data_vencimento: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-20`,
-            status: 'Processado',
-            observacoes: 'Contrato de prestação de serviços'
+            tipo: 'pasta',
+            nome: 'Contratos 2026',
+            tamanho: null,
+            data_modificacao: '2026-02-10',
+            proprietario: 'Roberto Silva'
         },
         {
             id: '2',
-            tipo_documento: 'NF',
-            numero_documento: 'NF-45678',
-            departamento: 'Financeiro',
-            responsavel: 'João Santos',
-            data_emissao: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-10`,
-            data_vencimento: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-25`,
-            status: 'Em Análise',
-            observacoes: 'Nota fiscal de equipamentos'
+            tipo: 'arquivo',
+            nome: 'Contrato_Fornecedor_XYZ.pdf',
+            tamanho: '2.4 MB',
+            data_modificacao: '2026-02-11',
+            proprietario: 'Maria Santos'
         },
         {
             id: '3',
-            tipo_documento: 'Relatório',
-            numero_documento: 'REL-2026-03',
-            departamento: 'Comercial',
-            responsavel: 'Ana Paula',
-            data_emissao: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-01`,
-            data_vencimento: `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-08`,
-            status: 'Atrasado',
-            observacoes: 'Relatório mensal de vendas'
+            tipo: 'arquivo',
+            nome: 'NF_45678.pdf',
+            tamanho: '856 KB',
+            data_modificacao: '2026-02-10',
+            proprietario: 'João Costa'
+        },
+        {
+            id: '4',
+            tipo: 'pasta',
+            nome: 'Relatórios Mensais',
+            tamanho: null,
+            data_modificacao: '2026-02-09',
+            proprietario: 'Ana Paula'
+        },
+        {
+            id: '5',
+            tipo: 'arquivo',
+            nome: 'Proposta_Cliente_ABC.docx',
+            tamanho: '1.2 MB',
+            data_modificacao: '2026-02-11',
+            proprietario: 'Carlos Mendes'
         }
     ];
     
+    renderDocumentos(documentos);
     console.log('📄 Documentos de exemplo carregados:', documentos.length);
 }
 
 // ============================================
-// INTEGRAÇÃO COM API (CORRIGIDA)
+// INTEGRAÇÃO COM API
 // ============================================
 async function carregarDocumentos() {
     try {
@@ -181,8 +170,6 @@ async function carregarDocumentos() {
         documentos = data;
         
         updateConnectionStatus(true);
-        updateAllFilters();
-        updateDashboard();
         filterDocumentos();
         
         console.log('✅ Documentos carregados:', documentos.length);
@@ -233,24 +220,26 @@ async function salvarDocumento(formData) {
     }
 }
 
-async function excluirDocumento(id) {
+async function excluirDocumentos(ids) {
     try {
-        const response = await fetch(`${API_URL}/documentos/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
+        for (const id of ids) {
+            const response = await fetch(`${API_URL}/documentos/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Session-Token': sessionToken,
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao excluir documento');
             }
-        });
-
-        if (!response.ok) {
-            throw new Error('Erro ao excluir documento');
         }
-
-        documentos = documentos.filter(d => String(d.id) !== String(id));
+        
+        documentos = documentos.filter(d => !ids.includes(String(d.id)));
         return true;
     } catch (error) {
-        console.error('❌ Erro ao excluir documento:', error);
+        console.error('❌ Erro ao excluir documentos:', error);
         throw error;
     }
 }
@@ -270,6 +259,160 @@ async function sincronizarDados() {
     } catch (error) {
         showToast('Erro ao sincronizar', 'error');
     }
+}
+
+// ============================================
+// SELEÇÃO MÚLTIPLA
+// ============================================
+function toggleSelectAll(checkbox) {
+    selectedIds.clear();
+    
+    if (checkbox.checked) {
+        documentos.forEach(doc => {
+            selectedIds.add(String(doc.id));
+        });
+    }
+    
+    document.querySelectorAll('.doc-checkbox').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    
+    updateActionButtons();
+}
+
+function toggleSelectDoc(checkbox, id) {
+    if (checkbox.checked) {
+        selectedIds.add(String(id));
+    } else {
+        selectedIds.delete(String(id));
+    }
+    
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = selectedIds.size === documentos.length && documentos.length > 0;
+    }
+    
+    updateActionButtons();
+}
+
+function updateActionButtons() {
+    const deleteBtn = document.getElementById('bulkDeleteBtn');
+    const moveBtn = document.getElementById('bulkMoveBtn');
+    
+    if (deleteBtn && moveBtn) {
+        if (selectedIds.size > 0) {
+            deleteBtn.disabled = false;
+            moveBtn.disabled = false;
+        } else {
+            deleteBtn.disabled = true;
+            moveBtn.disabled = true;
+        }
+    }
+}
+
+// ============================================
+// AÇÕES EM LOTE
+// ============================================
+function bulkDelete() {
+    if (selectedIds.size === 0) {
+        showToast('Nenhum item selecionado', 'error');
+        return;
+    }
+    
+    const confirmado = confirm(`Tem certeza que deseja excluir ${selectedIds.size} item(ns) selecionado(s)?`);
+    if (!confirmado) return;
+    
+    handleBulkDelete();
+}
+
+async function handleBulkDelete() {
+    try {
+        if (DEVELOPMENT_MODE) {
+            documentos = documentos.filter(d => !selectedIds.has(String(d.id)));
+        } else {
+            await excluirDocumentos(Array.from(selectedIds));
+        }
+        
+        selectedIds.clear();
+        filterDocumentos();
+        updateActionButtons();
+        
+        showToast('Itens excluídos com sucesso!', 'success');
+    } catch (error) {
+        showToast('Erro ao excluir itens', 'error');
+    }
+}
+
+function bulkMove() {
+    if (selectedIds.size === 0) {
+        showToast('Nenhum item selecionado', 'error');
+        return;
+    }
+    
+    showMoveModal();
+}
+
+function showMoveModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    
+    // Buscar todas as pastas
+    const pastas = documentos.filter(d => d.tipo === 'pasta');
+    
+    let optionsPastas = '<option value="">Selecione uma pasta</option>';
+    pastas.forEach(pasta => {
+        optionsPastas += `<option value="${pasta.id}">${escapeHtml(pasta.nome)}</option>`;
+    });
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Mover ${selectedIds.size} item(ns)</h3>
+                <button class="close-modal" onclick="this.closest('.modal-overlay').remove()">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="destinoPasta">Pasta de Destino</label>
+                    <select id="destinoPasta" required>
+                        ${optionsPastas}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" onclick="this.closest('.modal-overlay').remove()" class="secondary">Cancelar</button>
+                <button type="button" onclick="confirmMove()" class="primary">Mover</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+function confirmMove() {
+    const select = document.getElementById('destinoPasta');
+    const destinoId = select.value;
+    
+    if (!destinoId) {
+        showToast('Selecione uma pasta de destino', 'error');
+        return;
+    }
+    
+    const destino = documentos.find(d => d.id === destinoId);
+    
+    showToast(`${selectedIds.size} item(ns) movido(s) para "${destino.nome}"`, 'success');
+    
+    // Limpar seleção
+    selectedIds.clear();
+    updateActionButtons();
+    
+    // Fechar modal
+    document.querySelector('.modal-overlay').remove();
+    
+    // Recarregar lista
+    filterDocumentos();
 }
 
 // ============================================
@@ -341,21 +484,19 @@ async function handleDeleteClick(id) {
         return;
     }
     
-    const confirmado = confirm(`Tem certeza que deseja excluir o documento ${doc.numero_documento}?`);
+    const confirmado = confirm(`Tem certeza que deseja excluir "${doc.nome}"?`);
     if (!confirmado) return;
     
     try {
         if (DEVELOPMENT_MODE) {
             documentos = documentos.filter(d => String(d.id) !== String(id));
         } else {
-            await excluirDocumento(id);
+            await excluirDocumentos([id]);
         }
         
-        updateAllFilters();
-        updateDashboard();
         filterDocumentos();
         
-        showToast(`Documento ${doc.numero_documento} excluído com sucesso!`, 'success');
+        showToast(`"${doc.nome}" excluído com sucesso!`, 'success');
     } catch (error) {
         showToast('Erro ao excluir documento', 'error');
     }
@@ -375,9 +516,9 @@ function showFormModal() {
     const title = document.getElementById('formTitle');
     
     if (editingId) {
-        title.textContent = 'Editar Documento';
+        title.textContent = 'Editar Item';
     } else {
-        title.textContent = 'Novo Documento';
+        title.textContent = 'Novo Item';
     }
     
     modal.style.display = 'flex';
@@ -394,28 +535,21 @@ function limparFormulario() {
 }
 
 function preencherFormulario(doc) {
-    document.getElementById('tipoDocumento').value = doc.tipo_documento || '';
-    document.getElementById('numeroDocumento').value = doc.numero_documento || '';
-    document.getElementById('departamento').value = doc.departamento || '';
-    document.getElementById('responsavel').value = doc.responsavel || '';
-    document.getElementById('dataEmissao').value = doc.data_emissao || '';
-    document.getElementById('dataVencimento').value = doc.data_vencimento || '';
-    document.getElementById('status').value = doc.status || '';
-    document.getElementById('observacoes').value = doc.observacoes || '';
+    document.getElementById('tipoItem').value = doc.tipo || 'arquivo';
+    document.getElementById('nomeItem').value = doc.nome || '';
+    document.getElementById('tamanhoItem').value = doc.tamanho || '';
+    document.getElementById('proprietarioItem').value = doc.proprietario || '';
 }
 
 async function handleFormSubmit(event) {
     event.preventDefault();
     
     const formData = {
-        tipo_documento: document.getElementById('tipoDocumento').value,
-        numero_documento: document.getElementById('numeroDocumento').value,
-        departamento: document.getElementById('departamento').value,
-        responsavel: document.getElementById('responsavel').value,
-        data_emissao: document.getElementById('dataEmissao').value,
-        data_vencimento: document.getElementById('dataVencimento').value,
-        status: document.getElementById('status').value,
-        observacoes: document.getElementById('observacoes').value
+        tipo: document.getElementById('tipoItem').value,
+        nome: document.getElementById('nomeItem').value,
+        tamanho: document.getElementById('tipoItem').value === 'pasta' ? null : document.getElementById('tamanhoItem').value,
+        data_modificacao: new Date().toISOString().split('T')[0],
+        proprietario: document.getElementById('proprietarioItem').value
     };
     
     try {
@@ -424,24 +558,22 @@ async function handleFormSubmit(event) {
                 const index = documentos.findIndex(d => String(d.id) === String(editingId));
                 if (index !== -1) {
                     documentos[index] = { ...documentos[index], ...formData };
-                    showToast('Documento atualizado com sucesso!', 'success');
+                    showToast('Item atualizado com sucesso!', 'success');
                 }
             } else {
                 const novoId = String(Math.max(...documentos.map(d => parseInt(d.id) || 0)) + 1);
                 documentos.push({ id: novoId, ...formData });
-                showToast('Documento criado com sucesso!', 'success');
+                showToast('Item criado com sucesso!', 'success');
             }
         } else {
             await salvarDocumento(formData);
-            showToast(editingId ? 'Documento atualizado com sucesso!' : 'Documento criado com sucesso!', 'success');
+            showToast(editingId ? 'Item atualizado com sucesso!' : 'Item criado com sucesso!', 'success');
         }
         
         closeFormModal();
-        updateAllFilters();
-        updateDashboard();
         filterDocumentos();
     } catch (error) {
-        showToast('Erro ao salvar documento', 'error');
+        showToast('Erro ao salvar item', 'error');
     }
 }
 
@@ -461,133 +593,23 @@ function updateConnectionStatus(online) {
     }
 }
 
-function updateCurrentMonth() {
-    const monthText = `${meses[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
-    document.getElementById('currentMonth').textContent = monthText;
-}
-
-function changeMonth(delta) {
-    currentMonth.setMonth(currentMonth.getMonth() + delta);
-    updateCurrentMonth();
-    filterDocumentos();
-}
-
-// ============================================
-// DASHBOARD
-// ============================================
-function updateDashboard() {
-    const stats = calcularEstatisticas();
-    
-    document.getElementById('statProcessados').textContent = stats.processados;
-    document.getElementById('statAtrasados').textContent = stats.atrasados;
-    document.getElementById('statEmAnalise').textContent = stats.emAnalise;
-    document.getElementById('statTotal').textContent = stats.total;
-    document.getElementById('statPendentes').textContent = stats.pendentes;
-    
-    const cardAtrasados = document.getElementById('cardAtrasados');
-    if (stats.atrasados > 0) {
-        cardAtrasados.style.cursor = 'pointer';
-        cardAtrasados.onclick = showAlertModal;
-    } else {
-        cardAtrasados.style.cursor = 'default';
-        cardAtrasados.onclick = null;
-    }
-}
-
-function calcularEstatisticas() {
-    const mesAtual = currentMonth.getMonth();
-    const anoAtual = currentMonth.getFullYear();
-    
-    const documentosMes = documentos.filter(doc => {
-        const dataEmissao = new Date(doc.data_emissao);
-        return dataEmissao.getMonth() === mesAtual && dataEmissao.getFullYear() === anoAtual;
-    });
-    
-    return {
-        processados: documentosMes.filter(d => d.status === 'Processado').length,
-        atrasados: documentosMes.filter(d => d.status === 'Atrasado').length,
-        emAnalise: documentosMes.filter(d => d.status === 'Em Análise').length,
-        pendentes: documentosMes.filter(d => d.status === 'Pendente').length,
-        total: documentosMes.length
-    };
-}
-
 // ============================================
 // FILTROS
 // ============================================
-function updateAllFilters() {
-    const departamentos = [...new Set(documentos.map(d => d.departamento))].filter(Boolean).sort();
-    const filterDepartamento = document.getElementById('filterDepartamento');
-    const currentDept = filterDepartamento.value;
-    
-    filterDepartamento.innerHTML = '<option value="">Todos Departamentos</option>';
-    departamentos.forEach(dept => {
-        const option = document.createElement('option');
-        option.value = dept;
-        option.textContent = dept;
-        filterDepartamento.appendChild(option);
-    });
-    filterDepartamento.value = currentDept;
-    
-    const responsaveis = [...new Set(documentos.map(d => d.responsavel))].filter(Boolean).sort();
-    const filterResponsavel = document.getElementById('filterResponsavel');
-    const currentResp = filterResponsavel.value;
-    
-    filterResponsavel.innerHTML = '<option value="">Todos Responsáveis</option>';
-    responsaveis.forEach(resp => {
-        const option = document.createElement('option');
-        option.value = resp;
-        option.textContent = resp;
-        filterResponsavel.appendChild(option);
-    });
-    filterResponsavel.value = currentResp;
-    
-    const statusOptions = ['Pendente', 'Em Análise', 'Processado', 'Atrasado'];
-    const filterStatus = document.getElementById('filterStatus');
-    const currentStatus = filterStatus.value;
-    
-    filterStatus.innerHTML = '<option value="">Todos os Status</option>';
-    statusOptions.forEach(status => {
-        const option = document.createElement('option');
-        option.value = status;
-        option.textContent = status;
-        filterStatus.appendChild(option);
-    });
-    filterStatus.value = currentStatus;
-}
-
 function filterDocumentos() {
     const searchTerm = document.getElementById('search').value.toLowerCase();
-    const filterDept = document.getElementById('filterDepartamento').value;
-    const filterResp = document.getElementById('filterResponsavel').value;
-    const filterStat = document.getElementById('filterStatus').value;
-    
-    const mesAtual = currentMonth.getMonth();
-    const anoAtual = currentMonth.getFullYear();
     
     const documentosFiltrados = documentos.filter(doc => {
-        const dataEmissao = new Date(doc.data_emissao);
-        const mesDoc = dataEmissao.getMonth();
-        const anoDoc = dataEmissao.getFullYear();
-        
-        if (mesDoc !== mesAtual || anoDoc !== anoAtual) return false;
-        
         if (searchTerm) {
             const searchFields = [
-                doc.numero_documento,
-                doc.tipo_documento,
-                doc.departamento,
-                doc.responsavel,
-                doc.status,
-                doc.observacoes
+                doc.nome,
+                doc.tipo,
+                doc.proprietario,
+                doc.tamanho
             ].join(' ').toLowerCase();
             
             if (!searchFields.includes(searchTerm)) return false;
         }
-        
-        if (filterDept && doc.departamento !== filterDept) return false;
-        if (filterResp && doc.responsavel !== filterResp) return false;
-        if (filterStat && doc.status !== filterStat) return false;
         
         return true;
     });
@@ -608,7 +630,7 @@ function renderDocumentos(docs) {
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>
-                <p>Nenhum documento encontrado</p>
+                <p>Nenhum item encontrado</p>
             </div>
         `;
         return;
@@ -618,13 +640,14 @@ function renderDocumentos(docs) {
         <table class="fretes-table">
             <thead>
                 <tr>
+                    <th style="width: 50px;">
+                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" class="doc-checkbox-header">
+                    </th>
+                    <th>Nome</th>
                     <th>Tipo</th>
-                    <th>Número</th>
-                    <th>Departamento</th>
-                    <th>Responsável</th>
-                    <th>Emissão</th>
-                    <th>Vencimento</th>
-                    <th>Status</th>
+                    <th>Tamanho</th>
+                    <th>Última Modificação</th>
+                    <th>Proprietário</th>
                     <th class="actions-column">Ações</th>
                 </tr>
             </thead>
@@ -632,19 +655,26 @@ function renderDocumentos(docs) {
     `;
     
     docs.forEach(doc => {
-        const dataEmissao = formatarData(doc.data_emissao);
-        const dataVencimento = formatarData(doc.data_vencimento);
-        const statusClass = getStatusClass(doc.status);
+        const isChecked = selectedIds.has(String(doc.id)) ? 'checked' : '';
+        const icon = doc.tipo === 'pasta' 
+            ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>'
+            : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
         
         html += `
             <tr data-id="${doc.id}">
-                <td>${escapeHtml(doc.tipo_documento)}</td>
-                <td><strong>${escapeHtml(doc.numero_documento)}</strong></td>
-                <td>${escapeHtml(doc.departamento)}</td>
-                <td>${escapeHtml(doc.responsavel)}</td>
-                <td>${dataEmissao}</td>
-                <td>${dataVencimento}</td>
-                <td><span class="status-badge ${statusClass}">${escapeHtml(doc.status)}</span></td>
+                <td>
+                    <input type="checkbox" class="doc-checkbox" ${isChecked} onchange="toggleSelectDoc(this, '${doc.id}')">
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        ${icon}
+                        <strong>${escapeHtml(doc.nome || doc.numero_documento)}</strong>
+                    </div>
+                </td>
+                <td>${escapeHtml(doc.tipo || 'arquivo')}</td>
+                <td>${escapeHtml(doc.tamanho || '-')}</td>
+                <td>${formatarData(doc.data_modificacao || doc.data_emissao)}</td>
+                <td>${escapeHtml(doc.proprietario || doc.responsavel)}</td>
                 <td class="actions-column">
                     <div class="action-buttons">
                         <button class="action-btn view-btn" data-action="view" data-id="${doc.id}" title="Visualizar">
@@ -677,6 +707,9 @@ function renderDocumentos(docs) {
     `;
     
     container.innerHTML = html;
+    
+    // Restaurar estado dos checkboxes
+    updateActionButtons();
 }
 
 // ============================================
@@ -687,51 +720,36 @@ function mostrarModalVisualizacao(doc) {
     modal.className = 'modal-overlay';
     modal.style.display = 'flex';
     
-    const dataEmissao = formatarData(doc.data_emissao);
-    const dataVencimento = formatarData(doc.data_vencimento);
-    
     modal.innerHTML = `
         <div class="modal-content view-modal">
             <div class="modal-header">
-                <h3 class="modal-title">Detalhes do Documento</h3>
+                <h3 class="modal-title">Detalhes do Item</h3>
                 <button class="close-modal" onclick="this.closest('.modal-overlay').remove()">✕</button>
             </div>
             
             <div class="view-content">
                 <div class="view-row">
-                    <div class="view-label">Tipo de Documento:</div>
-                    <div class="view-value">${escapeHtml(doc.tipo_documento)}</div>
+                    <div class="view-label">Nome:</div>
+                    <div class="view-value"><strong>${escapeHtml(doc.nome || doc.numero_documento)}</strong></div>
                 </div>
                 <div class="view-row">
-                    <div class="view-label">Número do Documento:</div>
-                    <div class="view-value"><strong>${escapeHtml(doc.numero_documento)}</strong></div>
+                    <div class="view-label">Tipo:</div>
+                    <div class="view-value">${escapeHtml(doc.tipo || 'arquivo')}</div>
                 </div>
+                ${doc.tamanho ? `
                 <div class="view-row">
-                    <div class="view-label">Departamento:</div>
-                    <div class="view-value">${escapeHtml(doc.departamento)}</div>
-                </div>
-                <div class="view-row">
-                    <div class="view-label">Responsável:</div>
-                    <div class="view-value">${escapeHtml(doc.responsavel)}</div>
-                </div>
-                <div class="view-row">
-                    <div class="view-label">Data de Emissão:</div>
-                    <div class="view-value">${dataEmissao}</div>
-                </div>
-                <div class="view-row">
-                    <div class="view-label">Data de Vencimento:</div>
-                    <div class="view-value">${dataVencimento}</div>
-                </div>
-                <div class="view-row">
-                    <div class="view-label">Status:</div>
-                    <div class="view-value"><span class="status-badge ${getStatusClass(doc.status)}">${escapeHtml(doc.status)}</span></div>
-                </div>
-                ${doc.observacoes ? `
-                <div class="view-row full-width">
-                    <div class="view-label">Observações:</div>
-                    <div class="view-value">${escapeHtml(doc.observacoes)}</div>
+                    <div class="view-label">Tamanho:</div>
+                    <div class="view-value">${escapeHtml(doc.tamanho)}</div>
                 </div>
                 ` : ''}
+                <div class="view-row">
+                    <div class="view-label">Última Modificação:</div>
+                    <div class="view-value">${formatarData(doc.data_modificacao || doc.data_emissao)}</div>
+                </div>
+                <div class="view-row">
+                    <div class="view-label">Proprietário:</div>
+                    <div class="view-value">${escapeHtml(doc.proprietario || doc.responsavel)}</div>
+                </div>
             </div>
             
             <div class="modal-actions">
@@ -744,186 +762,12 @@ function mostrarModalVisualizacao(doc) {
 }
 
 // ============================================
-// MODAL DE ALERTAS
-// ============================================
-function showAlertModal() {
-    const atrasados = documentos.filter(d => d.status === 'Atrasado');
-    
-    if (atrasados.length === 0) {
-        showToast('Não há documentos atrasados!', 'info');
-        return;
-    }
-    
-    const modal = document.getElementById('alertModal');
-    const body = document.getElementById('alertModalBody');
-    
-    let html = `
-        <h2 style="color: #EF4444; margin-bottom: 1rem;">Documentos Atrasados</h2>
-        <p style="margin-bottom: 1rem;">Foram encontrados ${atrasados.length} documento(s) atrasado(s):</p>
-        <div class="alert-list">
-    `;
-    
-    atrasados.forEach(doc => {
-        html += `
-            <div class="alert-item">
-                <div class="alert-item-header">
-                    <strong>${escapeHtml(doc.numero_documento)}</strong>
-                    <span class="status-badge status-atrasado">${escapeHtml(doc.status)}</span>
-                </div>
-                <div class="alert-item-details">
-                    <div><strong>Tipo:</strong> ${escapeHtml(doc.tipo_documento)}</div>
-                    <div><strong>Departamento:</strong> ${escapeHtml(doc.departamento)}</div>
-                    <div><strong>Responsável:</strong> ${escapeHtml(doc.responsavel)}</div>
-                    <div><strong>Vencimento:</strong> ${formatarData(doc.data_vencimento)}</div>
-                </div>
-            </div>
-        `;
-    });
-    
-    html += '</div>';
-    body.innerHTML = html;
-    modal.style.display = 'flex';
-}
-
-function closeAlertModal() {
-    document.getElementById('alertModal').style.display = 'none';
-}
-
-// ============================================
-// MODAL DE GRÁFICO
-// ============================================
-function showGraficoModal() {
-    const modal = document.getElementById('graficoModal');
-    document.getElementById('graficoYear').textContent = graficoYear;
-    
-    renderDashboardsAnuais();
-    modal.style.display = 'flex';
-}
-
-function closeGraficoModal() {
-    document.getElementById('graficoModal').style.display = 'none';
-}
-
-function changeGraficoYear(delta) {
-    graficoYear += delta;
-    document.getElementById('graficoYear').textContent = graficoYear;
-    renderDashboardsAnuais();
-}
-
-function renderDashboardsAnuais() {
-    const container = document.getElementById('dashboardsContainer');
-    let html = '';
-    
-    for (let mes = 0; mes < 12; mes++) {
-        const documentosMes = documentos.filter(doc => {
-            const data = new Date(doc.data_emissao);
-            return data.getMonth() === mes && data.getFullYear() === graficoYear;
-        });
-        
-        const stats = {
-            processados: documentosMes.filter(d => d.status === 'Processado').length,
-            atrasados: documentosMes.filter(d => d.status === 'Atrasado').length,
-            emAnalise: documentosMes.filter(d => d.status === 'Em Análise').length,
-            pendentes: documentosMes.filter(d => d.status === 'Pendente').length,
-            total: documentosMes.length
-        };
-        
-        html += `
-            <div class="month-dashboard">
-                <h4>${meses[mes]}</h4>
-                <div class="dashboard-grid-mini">
-                    <div class="mini-stat">
-                        <div class="mini-stat-value">${stats.total}</div>
-                        <div class="mini-stat-label">Total</div>
-                    </div>
-                    <div class="mini-stat mini-stat-success">
-                        <div class="mini-stat-value">${stats.processados}</div>
-                        <div class="mini-stat-label">Processados</div>
-                    </div>
-                    <div class="mini-stat mini-stat-warning">
-                        <div class="mini-stat-value">${stats.emAnalise}</div>
-                        <div class="mini-stat-label">Em Análise</div>
-                    </div>
-                    <div class="mini-stat mini-stat-danger">
-                        <div class="mini-stat-value">${stats.atrasados}</div>
-                        <div class="mini-stat-label">Atrasados</div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    container.innerHTML = html;
-}
-
-// ============================================
-// CALENDÁRIO
-// ============================================
-function toggleCalendar() {
-    const modal = document.getElementById('calendarModal');
-    const isVisible = modal.classList.contains('show');
-    
-    if (isVisible) {
-        modal.classList.remove('show');
-    } else {
-        renderCalendar();
-        modal.classList.add('show');
-    }
-}
-
-function renderCalendar() {
-    const year = currentMonth.getFullYear();
-    document.getElementById('calendarYear').textContent = year;
-    
-    const container = document.getElementById('calendarMonths');
-    let html = '';
-    
-    meses.forEach((mes, index) => {
-        const isCurrentMonth = index === currentMonth.getMonth();
-        const activeClass = isCurrentMonth ? 'active' : '';
-        
-        html += `
-            <div class="calendar-month ${activeClass}" onclick="selectMonth(${index})">
-                ${mes}
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-}
-
-function selectMonth(monthIndex) {
-    currentMonth.setMonth(monthIndex);
-    updateCurrentMonth();
-    filterDocumentos();
-    toggleCalendar();
-}
-
-function changeCalendarYear(delta) {
-    const year = parseInt(document.getElementById('calendarYear').textContent);
-    const newYear = year + delta;
-    document.getElementById('calendarYear').textContent = newYear;
-    currentMonth.setFullYear(newYear);
-    renderCalendar();
-}
-
-// ============================================
 // UTILITÁRIOS
 // ============================================
 function formatarData(dataStr) {
     if (!dataStr) return '-';
     const data = new Date(dataStr + 'T00:00:00');
     return data.toLocaleDateString('pt-BR');
-}
-
-function getStatusClass(status) {
-    const classes = {
-        'Processado': 'status-processado',
-        'Em Análise': 'status-em-analise',
-        'Pendente': 'status-pendente',
-        'Atrasado': 'status-atrasado'
-    };
-    return classes[status] || '';
 }
 
 function escapeHtml(text) {
@@ -998,10 +842,6 @@ style.textContent = `
         border-bottom: 1px solid var(--border-color);
     }
     
-    .view-row.full-width {
-        grid-template-columns: 1fr;
-    }
-    
     .view-label {
         font-weight: 600;
         color: var(--text-secondary);
@@ -1011,73 +851,42 @@ style.textContent = `
         color: var(--text-primary);
     }
     
-    .alert-list {
-        max-height: 400px;
-        overflow-y: auto;
+    .doc-checkbox, .doc-checkbox-header {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
     }
     
-    .alert-item {
-        background: var(--input-bg);
-        padding: 1rem;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        border-left: 4px solid #EF4444;
-    }
-    
-    .alert-item-header {
+    .bulk-action-btn {
+        padding: 0.5rem;
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        border-radius: 6px;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.5rem;
+        justify-content: center;
+        transition: all 0.2s ease;
     }
     
-    .alert-item-details {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.5rem;
-        font-size: 0.9rem;
+    .bulk-action-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
     }
     
-    .month-dashboard {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-    }
-    
-    .month-dashboard h4 {
-        margin-bottom: 1rem;
+    .bulk-action-btn:not(:disabled):hover {
+        background: var(--input-bg);
         color: var(--text-primary);
     }
     
-    .dashboard-grid-mini {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
+    .bulk-action-btn.delete:not(:disabled):hover {
+        color: #EF4444;
     }
     
-    .mini-stat {
-        text-align: center;
-        padding: 0.75rem;
-        background: var(--input-bg);
-        border-radius: 8px;
+    .bulk-action-btn.move:not(:disabled):hover {
+        color: #3B82F6;
     }
-    
-    .mini-stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 0.25rem;
-    }
-    
-    .mini-stat-label {
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-    }
-    
-    .mini-stat-success .mini-stat-value { color: var(--success-color); }
-    .mini-stat-warning .mini-stat-value { color: var(--warning-color); }
-    .mini-stat-danger .mini-stat-value { color: var(--danger-color); }
 `;
 document.head.appendChild(style);
 
