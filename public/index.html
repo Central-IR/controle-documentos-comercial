@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Documentos</title>
+    
+    <!-- PROTEÇÃO CRÍTICA CONTRA LOOP DE IFRAME -->
+    <script>
+        // Se estamos dentro de um iframe, quebrar o loop
+        if (window.self !== window.top) {
+            console.error('❌ DETECTADO: Carregando dentro de iframe - quebrando loop');
+            window.top.location = window.self.location;
+        }
+        
+        // Prevenir que esta página seja carregada em iframe
+        if (window.parent !== window) {
+            window.parent.location = window.location;
+        }
+    </script>
+    
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
